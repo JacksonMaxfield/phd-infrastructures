@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 # Pull / prep original Seattle data
 seattle_2021_ds_items = seattle_2021_proto.pull_all_files(
     annotations_dir="training-data/seattle-2021-proto/annotations/",
-    transcript_output_dir="training-data/seattle-2021-proto/unlabeled_transcripts/",
+    transcript_output_dir=("training-data/seattle-2021-proto/unlabeled_transcripts/"),
     audio_output_dir="training-data/seattle-2021-proto/audio/",
 )
 seattle_2021_ds = preprocess.expand_gecko_annotations_to_dataset(
