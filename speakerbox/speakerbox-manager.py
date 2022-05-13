@@ -19,10 +19,12 @@ log = logging.getLogger(__name__)
 ###############################################################################
 
 TRAINING_DATA_PACKAGE_NAME = "speakerbox/training-data"
+TRAINED_MODEL_PACKAGE_NAME = "speakerbox/model"
 S3_BUCKET = "s3://evamaxfield-uw-equitensors-speakerbox"
 TRAINING_DATA_DIR = Path(__file__).parent / "training-data"
 TRAINING_DATA_DIRS_FOR_UPLOAD = [TRAINING_DATA_DIR / "diarized"]
 PREPARED_DATASET_DIR = Path(__file__).parent / "prepared-speakerbox-dataset"
+TRAINED_MODEL_NAME = "trained-speakerbox"
 
 ###############################################################################
 
@@ -110,7 +112,7 @@ class SpeakerboxManager:
 
     @staticmethod
     def prepare_dataset_for_training(
-        storage_dir: Union[str, Path] = PREPARED_DATASET_DIR,
+        prepared_dataset_storage_dir: Union[str, Path] = PREPARED_DATASET_DIR,
         top_hash: Optional[str] = None,
         equalize: bool = False,
     ) -> Path:
@@ -119,7 +121,7 @@ class SpeakerboxManager:
 
         Parameters
         ----------
-        storage_dir: Union[str, Path]
+        prepared_dataset_storage_dir: Union[str, Path]
             Directory name for where the prepared dataset should be stored.
             Default: prepared-speakerbox-dataset/
         top_hash: Optional[str]
@@ -196,8 +198,88 @@ class SpeakerboxManager:
         )
 
         # Store to disk
-        dataset.save_to_disk(storage_dir)
-        return Path(storage_dir)
+        dataset.save_to_disk(prepared_dataset_storage_dir)
+        return Path(prepared_dataset_storage_dir)
+
+    @staticmethod
+    def train_and_eval(
+        dataset_dir: Union[str, Path] = PREPARED_DATASET_DIR,
+        model_name: str = TRAINED_MODEL_NAME,
+    ) -> str:
+        """
+        Train and evaluate a new speakerbox model.
+
+        Parameters
+        ----------
+        dataset_dir: Union[str, Path]
+            Directory name for where the prepared dataset is stored.
+            Default: prepared-speakerbox-dataset/
+        model: str
+            Name for the trained model.
+            Default: trained-speakerbox
+
+        Returns
+        -------
+        top_hash: str
+            The generated package top hash. Includes both the model and eval results.
+        """
+        import shutil
+        from datetime import datetime
+
+        from datasets import DatasetDict
+        from quilt3 import Package
+
+        from speakerbox import eval_model, train
+
+        # Record training start time
+        training_start_dt = datetime.utcnow()
+
+        # Load dataset
+        dataset = DatasetDict.load_from_disk(dataset_dir)
+
+        # Train
+        model_storage_path = train(dataset, model_name=model_name)
+
+        # Create reusable model storage function
+        def store_model_dir(message: str) -> str:
+            package = Package()
+            package.set_dir(model_storage_path.name, model_storage_path)
+
+            # Upload
+            pushed = package.push(
+                TRAINED_MODEL_PACKAGE_NAME,
+                S3_BUCKET,
+                message=message,
+            )
+            return pushed.top_hash
+
+        # Remove checkpoints and runs subdirs
+        shutil.rmtree(model_storage_path / "runs")
+        for checkpoint_dir in model_storage_path.glob("checkpoint-*"):
+            if checkpoint_dir.is_dir():
+                shutil.rmtree(checkpoint_dir)
+
+        # Store model to S3
+        top_hash = store_model_dir(
+            message=f"{training_start_dt} -- initial storage before eval",
+        )
+        log.info(f"Completed initial storage of model. Result hash: {top_hash}")
+
+        # Eval
+        accuracy, precision, recall = eval_model(
+            dataset["valid"],
+            model_name=model_name,
+        )
+
+        # Store eval results too
+        top_hash = store_model_dir(
+            message=(
+                f"{training_start_dt} -- eval results, "
+                f"acc: {accuracy:.5f}, pre: {precision:.5f}, rec: {recall:.5f}"
+            )
+        )
+        log.info(f"Completed storage of model eval results. Result hash: {top_hash}")
+        return top_hash
 
 
 if __name__ == "__main__":
