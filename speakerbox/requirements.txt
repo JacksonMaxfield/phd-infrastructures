@@ -1,2 +1,3 @@
 speakerbox @ git+https://github.com/CouncilDataProject/speakerbox.git@feature/dataset-expansion
-quilt3
+quilt3~=5.0
+pyarrow~=8.0

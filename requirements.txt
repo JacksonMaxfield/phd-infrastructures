@@ -3,3 +3,4 @@ black
 isort
 mypy
 tox
+gitpython~=3.1

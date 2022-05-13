@@ -1,4 +1,6 @@
 # CI
 .tox/
+.mypy_cache/
 
-data/
+# Datasets
+training-data/
