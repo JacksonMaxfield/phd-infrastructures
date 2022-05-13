@@ -14,7 +14,7 @@ a [`speakerbox`](https://github.com/CouncilDataProject/speakerbox) model.
 ### Tox / Pre-Commit
 
 The only real tests and CI that runs on this repo is pre-commit which can be
-ran with `tox`.
+ran with `tox` in any sub-directory.
 
 Will check Python formatting, linting, types, and terraform files.
 
