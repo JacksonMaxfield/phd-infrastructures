@@ -28,10 +28,9 @@ on:
       storage:
         description: 'How much storage to request with the instance (GB).'
         required: true
-        default: '32'
+        default: '64'
         type: choice
         options:
-        - '32'
         - '64'
         - '128'
 
