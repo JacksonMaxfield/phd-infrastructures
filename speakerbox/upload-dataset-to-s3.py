@@ -6,9 +6,8 @@ import logging
 from pathlib import Path
 
 import git
+from constants import S3_BUCKET, TRAINING_DATA_DIR, TRAINING_DATA_PACKAGE_NAME
 from quilt3 import Package
-
-from .constants import S3_BUCKET, TRAINING_DATA_DIR, TRAINING_DATA_PACKAGE_NAME
 
 ###############################################################################
 
