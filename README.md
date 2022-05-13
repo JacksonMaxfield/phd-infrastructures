@@ -11,6 +11,14 @@ a [`speakerbox`](https://github.com/CouncilDataProject/speakerbox) model.
 
 ## Development
 
+### Just / Justfile
+
+Instead of using `make`, use `just` because it can be ran from any sub-directory and
+has less setup.
+
+Install: `cargo install just` or `brew install just`
+Usage: `just -l`
+
 ### Tox / Pre-Commit
 
 The only real tests and CI that runs on this repo is pre-commit which can be
