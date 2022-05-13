@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 # Constants
 
 PACKAGE_NAME = "speakerbox/training-data"
+S3_BUCKET = "s3://evamaxfield-uw-equitensors-speakerbox"
 TRAINING_DATA_DIRS_FOR_UPLOAD = [Path(__file__).parent / "training-data" / "diarized"]
 
 
@@ -115,7 +116,7 @@ def upload_dataset_for_training(dry_run: bool, force: bool) -> str:
         # Upload
         pushed = package.push(
             PACKAGE_NAME,
-            "s3://evamaxfield-speakerbox",
+            S3_BUCKET,
             message=f"From commit: {commit}",
         )
         log.info(f"Completed package push. Result hash: {pushed.top_hash}")
