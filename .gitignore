@@ -6,5 +6,8 @@
 # Management
 upload_manifest.jsonl
 
+# Generated
+__pycache__/
+
 # Datasets
 training-data/
