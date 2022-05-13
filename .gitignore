@@ -2,5 +2,8 @@
 .tox/
 .mypy_cache/
 
+# Management
+upload_manifest.jsonl
+
 # Datasets
 training-data/

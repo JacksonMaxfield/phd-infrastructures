@@ -49,6 +49,14 @@ class Args(argparse.Namespace):
                 "manifest file of that package instead of uploading."
             ),
         )
+        p.add_argument(
+            "-f",
+            "--force",
+            action="store_true",
+            help=(
+                "Should the current repo status be ignored and allow a dirty git tree."
+            ),
+        )
 
         # Parse
         p.parse_args(namespace=self)
@@ -72,6 +80,21 @@ def upload_dataset_for_training(dry_run: bool, force: bool) -> str:
         # Report package contents
         log.info(f"Package contents: {package}")
 
+        # Check for dry run
+        if dry_run:
+            # Attempt to build the package
+            top_hash = package.build(PACKAGE_NAME)
+
+            # Get resolved save path
+            manifest_save_path = Path("upload_manifest.jsonl").resolve()
+            with open(manifest_save_path, "w") as manifest_write:
+                package.dump(manifest_write)
+
+            # Report where manifest was saved
+            log.info(f"Dry run generated manifest stored to: {manifest_save_path}")
+            log.info(f"Completed package dry run. Result hash: {top_hash}")
+            return top_hash
+
         # Check repo status
         repo = git.Repo(search_parent_directories=True)
         if repo.is_dirty():
@@ -85,22 +108,6 @@ def upload_dataset_for_training(dry_run: bool, force: bool) -> str:
                     "Repo has uncommitted files but force was specified. "
                     "I hope you know what you're doing..."
                 )
-
-        # Check for dry run
-        if dry_run:
-            # Attempt to build the package
-            built = package.build(PACKAGE_NAME)
-
-            # Get resolved save path
-            manifest_save_path = Path("upload_manifest.jsonl").resolve()
-            with open(manifest_save_path, "w") as manifest_write:
-                package.dump(manifest_write)
-
-            # Report where manifest was saved
-            log.info(f"Dry run generated manifest stored to: {manifest_save_path}")
-            log.info(f"Completed package dry run. Result hash: {built.top_hash}")
-
-            return built.top_hash
 
         # Get current git commit
         commit = repo.head.object.hexsha
