@@ -197,7 +197,7 @@ class SpeakerboxManager:
 
         # Store to disk
         dataset.save_to_disk(storage_dir)
-        return storage_dir
+        return Path(storage_dir)
 
 
 if __name__ == "__main__":
