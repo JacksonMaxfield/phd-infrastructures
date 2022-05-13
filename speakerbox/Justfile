@@ -1,14 +1,11 @@
 default:
   just --list
 
-IMAGE_NAME := 'speakerbox-training'
+IMAGE_NAME := 'evamaxfield/speakerbox-training'
 
 # build docker images
 build-docker:
 	docker build -t {{IMAGE_NAME}} .
-
-# push docker images
-# push-docker:
 
 # run docker image locally
 run-docker-locally:
