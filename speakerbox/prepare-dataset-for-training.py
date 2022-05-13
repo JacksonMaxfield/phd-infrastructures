@@ -7,12 +7,11 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
+from constants import S3_BUCKET, TRAINING_DATA_DIR, TRAINING_DATA_PACKAGE_NAME
 from quilt3 import Package
 
 from speakerbox import preprocess
 from speakerbox.datasets import seattle_2021_proto
-
-from .constants import S3_BUCKET, TRAINING_DATA_DIR, TRAINING_DATA_PACKAGE_NAME
 
 ###############################################################################
 
@@ -46,6 +45,14 @@ class Args(argparse.Namespace):
                 "If none, will use latest."
             ),
         )
+        p.add_argument(
+            "-e",
+            "--equalize",
+            "--equalize-data-within-splits",
+            dest="equalize",
+            action="store_true",
+            help="Should the prepared dataset be equalized by label counts.",
+        )
 
         # Parse
         p.parse_args(namespace=self)
@@ -55,21 +62,27 @@ class Args(argparse.Namespace):
 # Build package
 
 
-def prepare_dataset_for_training(top_hash: Optional[str]) -> Path:
+def prepare_dataset_for_training(top_hash: Optional[str], equalize: bool) -> Path:
     # Setup storage dir
     storage_dir = TRAINING_DATA_DIR.resolve()
-    storage_dir.mkdir(exists_ok=True)
+    storage_dir.mkdir(exist_ok=True)
 
     # Pull / prep original Seattle data
+    seattle_2021_proto_dir = storage_dir / "seattle-2021-proto"
+    seattle_2021_proto_dir = seattle_2021_proto.unpack(
+        dest=seattle_2021_proto_dir,
+        clean=True,
+    )
     seattle_2021_ds_items = seattle_2021_proto.pull_all_files(
-        annotations_dir="training-data/seattle-2021-proto/annotations/",
-        transcript_output_dir="training-data/seattle-2021-proto/unlabeled_transcripts/",
-        audio_output_dir="training-data/seattle-2021-proto/audio/",
+        annotations_dir=seattle_2021_proto_dir / "annotations",
+        transcript_output_dir=seattle_2021_proto_dir / "unlabeled_transcripts",
+        audio_output_dir=seattle_2021_proto_dir / "audio",
     )
 
     # Expand annotated gecko data
     seattle_2021_ds = preprocess.expand_gecko_annotations_to_dataset(
         seattle_2021_ds_items,
+        audio_output_dir=TRAINING_DATA_DIR / "chunked-audio-from-gecko",
         overwrite=True,
     )
 
@@ -92,6 +105,7 @@ def prepare_dataset_for_training(top_hash: Optional[str]) -> Path:
             "training-data/diarized/9f55f22d8e61/",
             "training-data/diarized/9f581faa5ece/",
         ],
+        audio_output_dir=TRAINING_DATA_DIR / "chunked-audio-from-diarized",
         overwrite=True,
     )
 
@@ -99,10 +113,10 @@ def prepare_dataset_for_training(top_hash: Optional[str]) -> Path:
     combined_ds = pd.concat([seattle_2021_ds, diarized_ds], ignore_index=True)
 
     # Generate train test validate splits
-    dataset, value_counts = preprocess.prepare_dataset(combined_ds, equalize_data=False)
-    log.info(f"Dataset subset value counts:\n{value_counts}")
-
-    # dataset.save_to_disk(SOME_PATH)
+    dataset, _ = preprocess.prepare_dataset(
+        combined_ds,
+        equalize_data_within_splits=equalize,
+    )
 
     return storage_dir
 
@@ -113,7 +127,7 @@ def prepare_dataset_for_training(top_hash: Optional[str]) -> Path:
 
 def main() -> None:
     args = Args()
-    prepare_dataset_for_training(top_hash=args.top_hash)
+    prepare_dataset_for_training(top_hash=args.top_hash, equalize=args.equalize)
 
 
 ###############################################################################
