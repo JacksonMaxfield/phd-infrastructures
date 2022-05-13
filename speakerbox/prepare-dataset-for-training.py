@@ -104,6 +104,8 @@ def prepare_dataset_for_training(top_hash: Optional[str]) -> Path:
 
     # dataset.save_to_disk(SOME_PATH)
 
+    return storage_dir
+
 
 ###############################################################################
 # Runner
