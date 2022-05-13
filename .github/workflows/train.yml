@@ -10,10 +10,31 @@ on:
         type: choice
         options:
         - speakerbox
-      commands:
-        description: 'Commands to run to train, eval, etc.'
-        required: true 
-        type: string
+      region:
+        description: 'Which AWS region to use for the EC2 instance.'
+        required: true
+        default: 'us-west-2'
+        type: choice
+        options:
+        - 'us-west-2'
+      instance:
+        description: 'Which AWS EC2 machine type to use.'
+        required: true
+        default: 'p2.xlarge'
+        type: choice
+        options:
+        - 'p2.xlarge'
+        - 'p3.2xlarge'
+      storage:
+        description: 'How much storage to request with the instance (GB).'
+        required: true
+        default: '32'
+        type: choice
+        options:
+        - '32'
+        - '64'
+        - '128'
+
 
 jobs:
   deploy-runner:
@@ -21,39 +42,33 @@ jobs:
     steps:
       - uses: iterative/setup-cml@v1
       - uses: actions/checkout@v2
-      - name: Test inputs
+      - name: Deploy Runner on EC2
+        env:
+          REPO_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          cml runner \
+              --cloud=aws \
+              --cloud-region=${{ github.event.inputs.region }} \
+              --cloud-type=${{ github.event.inputs.instance }} \
+              --cloud-hdd-size=${{ github.event.inputs.storage }} \
+              --labels=cml-gpu
+
+  train-model:
+    needs: deploy-runner
+    runs-on: [self-hosted, cml-gpu]
+    timeout-minutes: 4320 # 72h
+    container:
+      image: docker://ghcr.io/iterative/cml
+      image: docker://ghcr.io/${{ github.repository_owner}}/${{ github.event.inputs.project }}
+      options: --gpus all
+    steps:
+      - uses: actions/checkout@v2
+      - name: Train and Evaluate Model
+        env:
+          REPO_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           cd ${{ github.event.inputs.project }}
-          ${{ github.event.inputs.commands }}
-
-  #     - name: Deploy runner on EC2
-  #       env:
-  #         REPO_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #       run: |
-  #         cml runner \
-  #             --cloud=aws \
-  #             --cloud-region=us-west \
-  #             --cloud-type=p2.xlarge \
-  #             --labels=cml-gpu
-  # train-model:
-  #   needs: deploy-runner
-  #   runs-on: [self-hosted, cml-gpu]
-  #   timeout-minutes: 4320 # 72h
-  #   container:
-  #     image: docker://iterativeai/cml:0-dvc2-base1-gpu
-  #     options: --gpus all
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Train model
-  #       env:
-  #         REPO_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-  #       run: |
-  #         pip install -r requirements.txt
-  #         python train.py
-
-  #         # Create CML report
-  #         cat metrics.txt >> report.md
-  #         cml publish plot.png --md --title="Confusion Matrix" >> report.md
-  #         cml send-comment report.md
+          python manager.py prepare_dataset
+          python manager.py train_and_eval
