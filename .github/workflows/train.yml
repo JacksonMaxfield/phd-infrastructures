@@ -24,7 +24,7 @@ jobs:
       - name: Test inputs
         run: |
           cd ${{ github.event.inputs.project }}
-          ${{ commands }}
+          ${{ github.event.inputs.commands }}
 
   #     - name: Deploy runner on EC2
   #       env:
