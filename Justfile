@@ -12,6 +12,7 @@ clean:
 clean-data:
 	find . -name 'upload-manifest.jsonl' -exec rm -fr {} +
 	find . -name 'training-data' -exec rm -fr {} +
+	find . -name 'prepared-*-dataset' -exec rm -fr {} +
 
 # lint, format, and check all files
 lint:
