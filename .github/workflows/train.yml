@@ -60,7 +60,6 @@ jobs:
     runs-on: [self-hosted, cml-gpu]
     timeout-minutes: 4320 # 72h
     container:
-      image: docker://ghcr.io/iterative/cml
       image: docker://ghcr.io/${{ github.repository_owner}}/${{ github.event.inputs.project }}
       options: --gpus all
     steps:
