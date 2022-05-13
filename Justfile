@@ -1,3 +1,6 @@
+default:
+  just --list
+
 # clean all build, python, and lint files
 clean:
 	find . -name '*.egg-info' -exec rm -fr {} +
@@ -13,6 +16,10 @@ clean-data:
 	find . -name 'upload-manifest.jsonl' -exec rm -fr {} +
 	find . -name 'training-data' -exec rm -fr {} +
 	find . -name 'prepared-*-dataset' -exec rm -fr {} +
+
+# clean all build, python, lint files, and stored and generated data
+clean-all:
+	just clean clean-data
 
 # lint, format, and check all files
 lint:
