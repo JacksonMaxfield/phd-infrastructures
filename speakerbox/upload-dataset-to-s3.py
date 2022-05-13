@@ -3,12 +3,12 @@
 
 import argparse
 import logging
-import sys
-import traceback
 from pathlib import Path
 
 import git
 from quilt3 import Package
+
+from .constants import S3_BUCKET, TRAINING_DATA_DIR, TRAINING_DATA_PACKAGE_NAME
 
 ###############################################################################
 
@@ -21,10 +21,8 @@ log = logging.getLogger(__name__)
 ###############################################################################
 # Constants
 
-PACKAGE_NAME = "speakerbox/training-data"
-S3_BUCKET = "s3://evamaxfield-uw-equitensors-speakerbox"
-TRAINING_DATA_DIRS_FOR_UPLOAD = [Path(__file__).parent / "training-data" / "diarized"]
 
+TRAINING_DATA_DIRS_FOR_UPLOAD = [TRAINING_DATA_DIR / "diarized"]
 
 ###############################################################################
 # Args
@@ -68,68 +66,57 @@ class Args(argparse.Namespace):
 
 
 def upload_dataset_for_training(dry_run: bool, force: bool) -> str:
-    # Try running the download pipeline
-    try:
-        # Report with directory will be used for upload
-        log.info(f"Using contents of directories: {TRAINING_DATA_DIRS_FOR_UPLOAD}")
+    # Report with directory will be used for upload
+    log.info(f"Using contents of directories: {TRAINING_DATA_DIRS_FOR_UPLOAD}")
 
-        # Create quilt package
-        package = Package()
-        for training_data_dir in TRAINING_DATA_DIRS_FOR_UPLOAD:
-            package.set_dir(training_data_dir.name, training_data_dir)
+    # Create quilt package
+    package = Package()
+    for training_data_dir in TRAINING_DATA_DIRS_FOR_UPLOAD:
+        package.set_dir(training_data_dir.name, training_data_dir)
 
-        # Report package contents
-        log.info(f"Package contents: {package}")
+    # Report package contents
+    log.info(f"Package contents: {package}")
 
-        # Check for dry run
-        if dry_run:
-            # Attempt to build the package
-            top_hash = package.build(PACKAGE_NAME)
+    # Check for dry run
+    if dry_run:
+        # Attempt to build the package
+        top_hash = package.build(TRAINING_DATA_PACKAGE_NAME)
 
-            # Get resolved save path
-            manifest_save_path = Path("upload_manifest.jsonl").resolve()
-            with open(manifest_save_path, "w") as manifest_write:
-                package.dump(manifest_write)
+        # Get resolved save path
+        manifest_save_path = Path("upload_manifest.jsonl").resolve()
+        with open(manifest_save_path, "w") as manifest_write:
+            package.dump(manifest_write)
 
-            # Report where manifest was saved
-            log.info(f"Dry run generated manifest stored to: {manifest_save_path}")
-            log.info(f"Completed package dry run. Result hash: {top_hash}")
-            return top_hash
+        # Report where manifest was saved
+        log.info(f"Dry run generated manifest stored to: {manifest_save_path}")
+        log.info(f"Completed package dry run. Result hash: {top_hash}")
+        return top_hash
 
-        # Check repo status
-        repo = git.Repo(search_parent_directories=True)
-        if repo.is_dirty():
-            if not force:
-                raise ValueError(
-                    "Repo has uncommitted files and force was not specified. "
-                    "Commit your files before continuing."
-                )
-            else:
-                log.warning(
-                    "Repo has uncommitted files but force was specified. "
-                    "I hope you know what you're doing..."
-                )
+    # Check repo status
+    repo = git.Repo(search_parent_directories=True)
+    if repo.is_dirty():
+        if not force:
+            raise ValueError(
+                "Repo has uncommitted files and force was not specified. "
+                "Commit your files before continuing."
+            )
+        else:
+            log.warning(
+                "Repo has uncommitted files but force was specified. "
+                "I hope you know what you're doing..."
+            )
 
-        # Get current git commit
-        commit = repo.head.object.hexsha
+    # Get current git commit
+    commit = repo.head.object.hexsha
 
-        # Upload
-        pushed = package.push(
-            PACKAGE_NAME,
-            S3_BUCKET,
-            message=f"From commit: {commit}",
-        )
-        log.info(f"Completed package push. Result hash: {pushed.top_hash}")
-        return pushed.top_hash
-
-    # Catch any exception
-    except Exception as e:
-        log.error("=============================================")
-        log.error("\n\n" + traceback.format_exc())
-        log.error("=============================================")
-        log.error("\n\n" + str(e) + "\n")
-        log.error("=============================================")
-        sys.exit(1)
+    # Upload
+    pushed = package.push(
+        TRAINING_DATA_PACKAGE_NAME,
+        S3_BUCKET,
+        message=f"From commit: {commit}",
+    )
+    log.info(f"Completed package push. Result hash: {pushed.top_hash}")
+    return pushed.top_hash
 
 
 ###############################################################################
