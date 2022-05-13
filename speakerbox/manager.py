@@ -111,7 +111,7 @@ class SpeakerboxManager:
         return pushed.top_hash
 
     @staticmethod
-    def prepare_dataset_for_training(
+    def prepare_dataset(
         prepared_dataset_storage_dir: Union[str, Path] = PREPARED_DATASET_DIR,
         top_hash: Optional[str] = None,
         equalize: bool = False,
