@@ -1,6 +1,7 @@
 # CI
 .tox/
 .mypy_cache/
+.terraform/
 
 # Management
 upload_manifest.jsonl
