@@ -30,10 +30,10 @@ TRAINING_DATA_DIRS_FOR_UPLOAD = [Path(__file__).parent / "training-data" / "diar
 
 
 class Args(argparse.Namespace):
-    def __init__(self):
+    def __init__(self) -> None:
         self.__parse()
 
-    def __parse(self):
+    def __parse(self) -> None:
         # Setup parser
         p = argparse.ArgumentParser(
             prog="upload-dataset-to-s3",
@@ -128,7 +128,7 @@ def upload_dataset_for_training(dry_run: bool, force: bool) -> str:
 # Runner
 
 
-def main():
+def main() -> None:
     args = Args()
     upload_dataset_for_training(dry_run=args.dry_run, force=args.force)
 
