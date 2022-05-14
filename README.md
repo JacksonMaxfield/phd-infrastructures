@@ -2,6 +2,8 @@
 
 Collection of generalized compute resources
 
+for a quick video of how the infra tools may be useful for you, [please watch this video](cml-is-great.mp4).
+
 ## Projects
 
 ### Speakerbox
