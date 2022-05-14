@@ -10,7 +10,7 @@ import fire
 ###############################################################################
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="[%(levelname)4s: %(module)s:%(lineno)4s %(asctime)s] %(message)s",
 )
 log = logging.getLogger(__name__)
@@ -232,7 +232,7 @@ class SpeakerboxManager:
         from speakerbox import eval_model, train
 
         # Record training start time
-        training_start_dt = datetime.utcnow()
+        training_start_dt = datetime.utcnow().replace(microsecond=0).isoformat()
 
         # Load dataset
         dataset = DatasetDict.load_from_disk(dataset_dir)
@@ -247,13 +247,14 @@ class SpeakerboxManager:
 
             # Log contents
             dir_contents = list(Path(model_name).glob("*"))
-            log.debug(f"Uploading directory contents: {dir_contents}")
+            log.info(f"Uploading directory contents: {dir_contents}")
 
             # Upload
             pushed = package.push(
                 TRAINED_MODEL_PACKAGE_NAME,
                 S3_BUCKET,
                 message=message,
+                force=True,
             )
             return pushed.top_hash
 
