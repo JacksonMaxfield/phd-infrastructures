@@ -10,7 +10,7 @@ import fire
 ###############################################################################
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="[%(levelname)4s: %(module)s:%(lineno)4s %(asctime)s] %(message)s",
 )
 log = logging.getLogger(__name__)
@@ -243,7 +243,11 @@ class SpeakerboxManager:
         # Create reusable model storage function
         def store_model_dir(message: str) -> str:
             package = Package()
-            package.set_dir(model_storage_path.name, model_storage_path)
+            package.set_dir(model_name, model_name)
+
+            # Log contents
+            dir_contents = list(Path(model_name).glob("*"))
+            log.debug(f"Uploading directory contents: {dir_contents}")
 
             # Upload
             pushed = package.push(
@@ -270,14 +274,13 @@ class SpeakerboxManager:
             dataset["valid"],
             model_name=model_name,
         )
+        eval_results_str = (
+            f"eval acc: {accuracy:.5f}, pre: {precision:.5f}, rec: {recall:.5f}"
+        )
+        log.info(eval_results_str)
 
         # Store eval results too
-        top_hash = store_model_dir(
-            message=(
-                f"{training_start_dt} -- eval results, "
-                f"acc: {accuracy:.5f}, pre: {precision:.5f}, rec: {recall:.5f}"
-            )
-        )
+        top_hash = store_model_dir(message=f"{training_start_dt} -- {eval_results_str}")
         log.info(f"Completed storage of model eval results. Result hash: {top_hash}")
         return top_hash
 
