@@ -35,8 +35,45 @@ on:
         - '128'
 
 
+env:
+  REGISTRY: ghcr.io
+
 jobs:
+  build-and-push-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Log in to the Container Registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner}}/${{ github.event.inputs.project }}}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        with:
+          context: ${{ github.event.inputs.project }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Take a Nap
+        run: sleep 15s
+
   deploy-runner:
+    needs: build-and-push-images
     runs-on: ubuntu-latest
     steps:
       - uses: iterative/setup-cml@v1
@@ -59,7 +96,7 @@ jobs:
     runs-on: [self-hosted, cml-gpu]
     timeout-minutes: 4320 # 72h
     container:
-      image: docker://ghcr.io/jacksonmaxfield/${{ github.event.inputs.project }}:main
+      image: docker://${{ env.REGISTRY }}/jacksonmaxfield/${{ github.event.inputs.project }}:main
       options: --gpus all
     steps:
       - uses: actions/checkout@v2
