@@ -30,6 +30,14 @@ on:
         required: true
         default: '64'
         type: string
+      prepareDatasetKwargs:
+        description: 'Extra keyword args to provide to the dataset prep function.'
+        required: false
+        type: string
+      trainAndEvalKwargs:
+        description: 'Extra keyword args to provide to the train and eval function.'
+        required: false
+        type: string
 
 jobs:
   build-and-push-images:
@@ -101,5 +109,5 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           cd ${{ github.event.inputs.project }}
-          python manager.py prepare_dataset
-          python manager.py train_and_eval
+          python manager.py prepare_dataset ${{ github.event.inputs.prepareDatasetKwargs }}
+          python manager.py train_and_eval ${{ github.event.inputs.trainAndEvalKwargs }}
