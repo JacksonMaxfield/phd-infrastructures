@@ -271,12 +271,13 @@ class SpeakerboxManager:
         log.info(f"Completed initial storage of model. Result hash: {top_hash}")
 
         # Eval
-        accuracy, precision, recall = eval_model(
+        accuracy, precision, recall, loss = eval_model(
             dataset["valid"],
             model_name=model_name,
         )
         eval_results_str = (
-            f"eval acc: {accuracy:.5f}, pre: {precision:.5f}, rec: {recall:.5f}"
+            f"eval acc: {accuracy:.5f}, pre: {precision:.5f}, "
+            f"rec: {recall:.5f}, loss: {loss:.5f}"
         )
         log.info(eval_results_str)
 
