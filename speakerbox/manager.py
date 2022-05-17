@@ -3,7 +3,7 @@
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import Optional, Union
 
 import fire
 
@@ -289,7 +289,7 @@ class SpeakerboxManager:
     def pull_model(
         top_hash: Optional[str] = None,
         dest: Optional[Union[str, Path]] = None,
-    ) -> Path:
+    ) -> None:
         """
         todo
         """
@@ -301,8 +301,6 @@ class SpeakerboxManager:
             top_hash=top_hash,
         )
         package.fetch()
-
-        return dest
 
     @staticmethod
     def list_models(n: int = 10) -> None:
