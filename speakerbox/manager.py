@@ -285,6 +285,25 @@ class SpeakerboxManager:
         log.info(f"Completed storage of model eval results. Result hash: {top_hash}")
         return top_hash
 
+    @staticmethod
+    def pull_model(
+        top_hash: Optional[str] = None,
+        dest: Optional[Union[str, Path]] = None,
+    ) -> Path:
+        """
+        todo
+        """
+        from quilt3 import Package
+
+        package = Package.browse(
+            TRAINED_MODEL_PACKAGE_NAME,
+            S3_BUCKET,
+            top_hash=top_hash,
+        )
+        package.fetch()
+
+        return dest
+
 
 if __name__ == "__main__":
     manager = SpeakerboxManager()

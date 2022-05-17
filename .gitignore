@@ -12,3 +12,4 @@ __pycache__/
 # Datasets
 training-data/
 prepared-*-dataset/
+results/
