@@ -3,7 +3,7 @@
 
 import logging
 from pathlib import Path
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import fire
 
@@ -303,6 +303,37 @@ class SpeakerboxManager:
         package.fetch()
 
         return dest
+
+    @staticmethod
+    def list_models(n: int = 10) -> None:
+        import pandas as pd
+        from quilt3 import Package, list_package_versions
+
+        # Get package versions
+        versions_with_message = []
+        versions = list(list_package_versions(TRAINED_MODEL_PACKAGE_NAME, S3_BUCKET))
+        checked = 0
+        for _, version in versions[::-1]:
+            p = Package.browse(
+                TRAINED_MODEL_PACKAGE_NAME,
+                S3_BUCKET,
+                top_hash=version,
+            )
+            for line in p.manifest:
+                versions_with_message.append(
+                    {
+                        "hash": version,
+                        "message": line["message"],
+                    }
+                )
+                break
+
+            checked += 1
+            if checked == n:
+                break
+
+        data = pd.DataFrame(versions_with_message)
+        log.info(f"Package versions:\n{data}")
 
 
 if __name__ == "__main__":
