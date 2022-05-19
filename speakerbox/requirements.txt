@@ -1,4 +1,4 @@
-speakerbox @ git+https://github.com/CouncilDataProject/speakerbox.git@feature/dataset-expansion
+speakerbox @ git+https://github.com/CouncilDataProject/speakerbox.git
 quilt3~=5.0
 pyarrow~=8.0
 cdp-backend
