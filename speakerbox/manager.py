@@ -41,13 +41,13 @@ class _TranscriptMeta(DataClassJsonMixin):
 
 @dataclass
 class _TranscriptApplicationReturn(DataClassJsonMixin):
-    annotated_transcript: Path
+    annotated_transcript: str
     transcript_meta: _TranscriptMeta
 
 
 @dataclass
 class _TranscriptApplicationError(DataClassJsonMixin):
-    transcript: Path
+    transcript: str
     error: str
 
 
@@ -425,7 +425,7 @@ class SpeakerboxManager:
             )
         except Exception as e:
             return _TranscriptApplicationError(
-                transcript=transcript,
+                transcript=str(transcript),
                 error=str(e),
             )
 
@@ -439,7 +439,7 @@ class SpeakerboxManager:
 
         # Return application return (likely batch / parallel apply)
         return _TranscriptApplicationReturn(
-            annotated_transcript=dest,
+            annotated_transcript=str(dest),
             transcript_meta=transcript_meta,
         )
 
