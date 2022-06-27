@@ -289,10 +289,19 @@ class SpeakerboxManager:
     @staticmethod
     def pull_model(
         top_hash: Optional[str] = None,
-        dest: Optional[Union[str, Path]] = None,
+        dest: Union[str, Path] = "./",
     ) -> None:
         """
-        todo
+        Pull down a single model.
+
+        Parameters
+        ----------
+        top_hash: Optional[str]
+            Specific model version to pull.
+            Default: None (latest)
+        dest: Union[str, Path]
+            Location to store the model.
+            Default: current directory
         """
         from quilt3 import Package
 
@@ -301,15 +310,23 @@ class SpeakerboxManager:
             S3_BUCKET,
             top_hash=top_hash,
         )
-        package.fetch()
+        package.fetch(dest)
 
     @staticmethod
     def list_models(n: int = 10) -> None:
-        import pandas as pd
+        """
+        List all stored models.
+
+        Parameters
+        ----------
+        n: int
+            Number of models to check
+            Default: 10
+        """
         from quilt3 import Package, list_package_versions
 
         # Get package versions
-        versions_with_message = []
+        lines = []
         versions = list(list_package_versions(TRAINED_MODEL_PACKAGE_NAME, S3_BUCKET))
         checked = 0
         for _, version in versions[::-1]:
@@ -319,20 +336,16 @@ class SpeakerboxManager:
                 top_hash=version,
             )
             for line in p.manifest:
-                versions_with_message.append(
-                    {
-                        "hash": version,
-                        "message": line["message"],
-                    }
-                )
+                message = line["message"]
+                lines.append(f"hash: {version} -- message: '{message}'")
                 break
 
             checked += 1
             if checked == n:
                 break
 
-        data = pd.DataFrame(versions_with_message)
-        log.info(f"Package versions:\n{data}")
+        single_print = "\n".join(lines)
+        log.info(f"Models:\n{single_print}")
 
 
 if __name__ == "__main__":
