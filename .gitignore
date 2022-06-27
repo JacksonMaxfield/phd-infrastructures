@@ -13,6 +13,7 @@ __pycache__/
 training-data/
 prepared-*-dataset/
 results/
+cdp-datasets/
 
 # Models
 trained-speakerbox/

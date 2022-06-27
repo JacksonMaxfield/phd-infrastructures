@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import logging
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
 
 import fire
+from dataclasses_json import DataClassJsonMixin
 
 ###############################################################################
 
@@ -25,6 +28,28 @@ TRAINING_DATA_DIR = Path(__file__).parent / "training-data"
 TRAINING_DATA_DIRS_FOR_UPLOAD = [TRAINING_DATA_DIR / "diarized"]
 PREPARED_DATASET_DIR = Path(__file__).parent / "prepared-speakerbox-dataset"
 TRAINED_MODEL_NAME = "trained-speakerbox"
+
+###############################################################################
+
+
+@dataclass
+class _TranscriptMeta(DataClassJsonMixin):
+    event_id: str
+    session_id: str
+    session_datetime: datetime
+
+
+@dataclass
+class _TranscriptApplicationReturn(DataClassJsonMixin):
+    annotated_transcript: Path
+    transcript_meta: _TranscriptMeta
+
+
+@dataclass
+class _TranscriptApplicationError(DataClassJsonMixin):
+    transcript: Path
+    error: str
+
 
 ###############################################################################
 
@@ -310,7 +335,7 @@ class SpeakerboxManager:
             S3_BUCKET,
             top_hash=top_hash,
         )
-        package.fetch(dest)
+        package["trained-speakerbox"].fetch(dest)
 
     @staticmethod
     def list_models(n: int = 10) -> None:
@@ -346,6 +371,160 @@ class SpeakerboxManager:
 
         single_print = "\n".join(lines)
         log.info(f"Models:\n{single_print}")
+
+    @staticmethod
+    def _pull_or_use_model(model_top_hash: str, model_storage_path: str) -> None:
+        # Pull model
+        if Path(model_storage_path).exists():
+            log.info(f"Using existing model found in directory: '{model_storage_path}'")
+        else:
+            log.info(
+                f"Pulling and using model from hash: '{model_top_hash}' "
+                f"(storing to: '{model_storage_path}')"
+            )
+            SpeakerboxManager.pull_model(
+                top_hash=model_top_hash,
+                dest=model_storage_path,
+            )
+
+    @staticmethod
+    def apply_single(
+        transcript: Union[str, Path],
+        audio: Union[str, Path],
+        dest: Optional[Union[str, Path]] = None,
+        model_top_hash: str = (
+            "453d51cc7006d2ba26640ba91eed67a5f8a9315d7c25d95f81072edb20054054"
+        ),
+        model_storage_path: str = "trained-speakerbox",
+        transcript_meta: Optional[_TranscriptMeta] = None,
+    ) -> Union[Path, _TranscriptApplicationReturn, _TranscriptApplicationError]:
+        from cdp_backend.annotation.speaker_labels import annotate
+
+        # Pull or use model
+        SpeakerboxManager._pull_or_use_model(
+            model_top_hash=model_top_hash,
+            model_storage_path=model_storage_path,
+        )
+
+        # Configure destination file
+        transcript = Path(transcript)
+        if dest is None:
+            transcript_name_no_suffix = transcript.with_suffix("").name
+            dest_name = f"{transcript_name_no_suffix}-annotated.json"
+            dest = transcript.parent / dest_name
+
+        # Dest should always be a path
+        dest = Path(dest)
+
+        # Annotate and store
+        try:
+            annotated_transcript = annotate(
+                transcript=transcript,
+                audio=audio,
+                model=model_storage_path,
+            )
+        except Exception as e:
+            return _TranscriptApplicationError(
+                transcript=transcript,
+                error=str(e),
+            )
+
+        # Store and return
+        with open(dest, "w") as open_f:
+            open_f.write(annotated_transcript.to_json(indent=4))
+
+        # Return simple path (likely single application)
+        if transcript_meta is None:
+            return dest
+
+        # Return application return (likely batch / parallel apply)
+        return _TranscriptApplicationReturn(
+            annotated_transcript=dest,
+            transcript_meta=transcript_meta,
+        )
+
+    @staticmethod
+    def apply_across_cdp_dataset(
+        instance: str,
+        start_datetime: str,
+        end_datetime: str,
+        model_top_hash: str = (
+            "453d51cc7006d2ba26640ba91eed67a5f8a9315d7c25d95f81072edb20054054"
+        ),
+        model_storage_path: str = "trained-speakerbox",
+    ) -> str:
+        from itertools import repeat
+
+        import pandas as pd
+        from cdp_data import datasets, instances
+        from tqdm.contrib.concurrent import process_map
+
+        # Get session dataset to apply against
+        ds = datasets.get_session_dataset(
+            infrastructure_slug=getattr(instances.CDPInstances, instance),
+            start_datetime=start_datetime,
+            end_datetime=end_datetime,
+            store_transcript=True,
+            store_audio=True,
+        )
+
+        # Pull or use model
+        # Do this now to avoid parallel download problems
+        SpeakerboxManager._pull_or_use_model(
+            model_top_hash=model_top_hash,
+            model_storage_path=model_storage_path,
+        )
+
+        # Parallel annotate
+        transcript_metas = [
+            _TranscriptMeta(
+                event_id=r.event.id,
+                session_id=r.id,
+                session_datetime=r.session_datetime,
+            )
+            for _, r in ds.iterrows()
+        ]
+
+        log.info("Annotating transcripts...")
+        annotation_returns = process_map(
+            SpeakerboxManager.apply_single,
+            ds.transcript_path,
+            ds.audio_path,
+            repeat(None),
+            repeat(model_top_hash),
+            repeat(model_storage_path),
+            transcript_metas,
+        )
+
+        # Filter any errors
+        errors = pd.DataFrame(
+            [
+                e.to_dict()
+                for e in annotation_returns
+                if isinstance(e, _TranscriptApplicationError)
+            ]
+        )
+        results = pd.DataFrame(
+            [
+                r.to_dict()
+                for r in annotation_returns
+                if isinstance(r, _TranscriptApplicationReturn)
+            ]
+        )
+
+        # Log info
+        log.info(f"Annotated {len(results)} transcripts; {len(errors)} errored")
+
+        # Store errors to CSV for easy viewing
+        # Store results to parquet for fast load
+        errors.to_csv("errors.csv", index=False)
+        results_save_path = (
+            f"results--start_{start_datetime}--end_{end_datetime}.parquet"
+        )
+        results.to_parquet(results_save_path)
+
+        # Return path to parquet file of results
+        return results_save_path
 
 
 if __name__ == "__main__":
