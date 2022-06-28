@@ -5,7 +5,8 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
+from uuid import uuid4
 
 import fire
 from dataclasses_json import DataClassJsonMixin
@@ -37,11 +38,12 @@ class _TranscriptMeta(DataClassJsonMixin):
     event_id: str
     session_id: str
     session_datetime: datetime
+    stored_annotated_transcript_uri: Optional[str] = None
 
 
 @dataclass
 class _TranscriptApplicationReturn(DataClassJsonMixin):
-    annotated_transcript: str
+    annotated_transcript_path: str
     transcript_meta: _TranscriptMeta
 
 
@@ -397,6 +399,8 @@ class SpeakerboxManager:
         ),
         model_storage_path: str = "trained-speakerbox",
         transcript_meta: Optional[_TranscriptMeta] = None,
+        remote_storage_dir: Optional[str] = None,
+        fs_kwargs: Dict[str, Any] = {},
     ) -> Union[Path, _TranscriptApplicationReturn, _TranscriptApplicationError]:
         from cdp_backend.annotation.speaker_labels import annotate
 
@@ -433,13 +437,32 @@ class SpeakerboxManager:
         with open(dest, "w") as open_f:
             open_f.write(annotated_transcript.to_json(indent=4))
 
+        # Optionally store to S3
+        if remote_storage_dir:
+            import s3fs
+
+            fs = s3fs.S3FileSystem(**fs_kwargs)
+
+            # Clean up storage dir tail
+            if remote_storage_dir[-1] == "/":
+                remote_storage_dir = remote_storage_dir[:-1]
+
+            # Make remote path
+            remote_path = f"{remote_storage_dir}/{uuid4()}.json"
+            fs.put_file(str(dest), remote_path)
+            log.info(f"Stored '{dest}' to '{remote_path}'")
+
+            # Attach remote path to meta
+            if transcript_meta is not None:
+                transcript_meta.stored_annotated_transcript_uri = f"s3://{remote_path}"
+
         # Return simple path (likely single application)
         if transcript_meta is None:
             return dest
 
         # Return application return (likely batch / parallel apply)
         return _TranscriptApplicationReturn(
-            annotated_transcript=str(dest),
+            annotated_transcript_path=str(dest),
             transcript_meta=transcript_meta,
         )
 
@@ -452,6 +475,8 @@ class SpeakerboxManager:
             "453d51cc7006d2ba26640ba91eed67a5f8a9315d7c25d95f81072edb20054054"
         ),
         model_storage_path: str = "trained-speakerbox",
+        remote_storage_dir: Optional[str] = None,
+        fs_kwargs: Dict[str, Any] = {},
     ) -> str:
         from itertools import repeat
 
@@ -494,6 +519,8 @@ class SpeakerboxManager:
             repeat(model_top_hash),
             repeat(model_storage_path),
             transcript_metas,
+            repeat(remote_storage_dir),
+            repeat(fs_kwargs),
         )
 
         # Filter any errors
@@ -506,7 +533,10 @@ class SpeakerboxManager:
         )
         results = pd.DataFrame(
             [
-                r.to_dict()
+                {
+                    "annotated_transcript_path": r.annotated_transcript,
+                    **r.transcript_meta.to_dict(),
+                }
                 for r in annotation_returns
                 if isinstance(r, _TranscriptApplicationReturn)
             ]
