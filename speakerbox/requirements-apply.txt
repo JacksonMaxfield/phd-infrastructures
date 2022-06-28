@@ -1,7 +1,8 @@
 cdp-backend[pipeline] @ https://github.com/CouncilDataProject/cdp-backend/archive/refs/heads/feature/apply-speaker-classifier.zip
 cdp-data==0.0.6
 dataclasses-json
-pandas~=1.0
-pyarrow~=8.0
-quilt3~=5.0
-tqdm~=4.64
+pandas==1.4.2
+pyarrow==8.0.0
+quilt3==5.0.0
+s3fs[boto3]==2022.5.0
+tqdm==4.64.0
