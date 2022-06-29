@@ -512,7 +512,7 @@ class SpeakerboxManager:
             # Make remote path
             remote_path = f"{remote_storage_dir}/{uuid4()}.json"
             fs.put_file(str(dest), remote_path)
-            log.debug(f"Stored '{dest}' to '{remote_path}'")
+            log.info(f"Stored '{dest}' to '{remote_path}'")
 
             # Attach remote path to meta
             if transcript_meta is not None:
