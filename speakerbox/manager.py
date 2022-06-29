@@ -575,12 +575,19 @@ class SpeakerboxManager:
         When attempting to use remote storage, be sure to set your `AWS_PROFILE`
         environment variable.
         """
+        import os
+
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
         from datetime import datetime
         from itertools import repeat
 
         import pandas as pd
+        import torch
         from cdp_data import datasets, instances
         from tqdm.contrib.concurrent import process_map
+
+        torch.device("cpu")
 
         if remote_storage_dir:
             # Clean up storage dir tail
