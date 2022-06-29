@@ -314,6 +314,36 @@ class SpeakerboxManager:
         return top_hash
 
     @staticmethod
+    def prepare_train_and_eval(
+        prepared_dataset_storage_dir: Union[str, Path] = PREPARED_DATASET_DIR,
+        top_hash: Optional[str] = None,
+        equalize: bool = False,
+        model_name: str = TRAINED_MODEL_NAME,
+    ) -> None:
+        """
+        Runs prepare_dataset and train_and_eval one after the other.
+
+        Parameters are passed down to the appropriate functions.
+
+        See Also
+        --------
+        SpeakerboxManager.prepare_dataset
+            The function to prepare the dataset to be ready for training.
+        SpeakerboxManager.train_and_eval
+            The function to train and evaluate a model.
+        """
+        SpeakerboxManager.prepare_dataset(
+            prepared_dataset_storage_dir=prepared_dataset_storage_dir,
+            top_hash=top_hash,
+            equalize=equalize,
+        )
+
+        SpeakerboxManager.train_and_eval(
+            dataset_dir=prepared_dataset_storage_dir,
+            model_name=model_name,
+        )
+
+    @staticmethod
     def pull_model(
         top_hash: Optional[str] = None,
         dest: Union[str, Path] = "./",
