@@ -18,12 +18,11 @@ on:
         options:
         - 'us-west-2'
       instance:
-        description: 'Which AWS EC2 machine type to use. ("c6*" is CPU, "p*" is GPU).'
+        description: 'Which AWS EC2 machine type to use.'
         required: true
-        default: 'c6id.xlarge'
+        default: 'p2.xlarge'
         type: choice
         options:
-        - 'c6id.xlarge'
         - 'p2.xlarge'
         - 'p3.2xlarge'
       storage:
