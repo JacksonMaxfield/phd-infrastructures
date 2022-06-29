@@ -1,4 +1,4 @@
-name: Train Model
+name: Run Command
 
 on: 
   workflow_dispatch:
@@ -18,11 +18,12 @@ on:
         options:
         - 'us-west-2'
       instance:
-        description: 'Which AWS EC2 machine type to use.'
+        description: 'Which AWS EC2 machine type to use. ("a*" is CPU, "p*" is GPU')
         required: true
-        default: 'p2.xlarge'
+        default: 'a1.2xlarge'
         type: choice
         options:
+        - 'a1.2xlarge'
         - 'p2.xlarge'
         - 'p3.2xlarge'
       storage:
@@ -30,13 +31,14 @@ on:
         required: true
         default: '64'
         type: string
-      prepareDatasetKwargs:
-        description: 'Extra keyword args to provide to the dataset prep function.'
-        required: false
+      docker:
+        description: 'Which directory to use for building the Dockerfile.'
+        required: true
+        default: 'apply'
         type: string
-      trainAndEvalKwargs:
-        description: 'Extra keyword args to provide to the train and eval function.'
-        required: false
+      command:
+        description: 'The command to run in the CLI with the full kwargs'
+        required: true
         type: string
 
 jobs:
@@ -60,12 +62,12 @@ jobs:
         id: meta
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
         with:
-          images: ghcr.io/${{ github.repository_owner}}/${{ github.event.inputs.project }}
+          images: ghcr.io/${{ github.repository_owner}}/${{ github.event.inputs.project }}-${{ github.event.inputs.docker }}
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
-          context: ${{ github.event.inputs.project }}
+          context: ${{ github.event.inputs.project }}/${{ github.event.inputs.docker }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -93,21 +95,20 @@ jobs:
               --cloud-startup-script=$(echo 'echo "$(curl https://github.com/'"$GITHUB_ACTOR"'.keys)" >> /home/ubuntu/.ssh/authorized_keys' | base64 -w 0) \
               --labels=cml-gpu
 
-  train-model:
+  run-command:
     needs: deploy-runner
     runs-on: [self-hosted, cml-gpu]
     timeout-minutes: 4320 # 72h
     container:
-      image: docker://ghcr.io/jacksonmaxfield/${{ github.event.inputs.project }}:main
+      image: docker://ghcr.io/jacksonmaxfield/${{ github.event.inputs.project }}-${{ github.event.inputs.docker }}:main
       options: --gpus all
     steps:
       - uses: actions/checkout@v2
-      - name: Train and Evaluate Model
+      - name: Run Command
         env:
           REPO_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           cd ${{ github.event.inputs.project }}
-          python manager.py prepare_dataset ${{ github.event.inputs.prepareDatasetKwargs }}
-          python manager.py train_and_eval ${{ github.event.inputs.trainAndEvalKwargs }}
+          ${{ github.event.inputs.command }}

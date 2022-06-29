@@ -1,0 +1,12 @@
+default:
+  just --list
+
+IMAGE_NAME := 'evamaxfield/speakerbox-application'
+
+# build docker images
+build-docker:
+	docker build -t {{IMAGE_NAME}} .
+
+# run docker image locally
+run-docker-locally:
+  docker run --rm -it {{IMAGE_NAME}} bash
