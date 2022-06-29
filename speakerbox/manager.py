@@ -402,6 +402,42 @@ class SpeakerboxManager:
         remote_storage_dir: Optional[str] = None,
         fs_kwargs: Dict[str, Any] = {},
     ) -> Union[Path, _TranscriptApplicationReturn, _TranscriptApplicationError]:
+        """
+        Apply a trained Speakerbox model to a single transcript.
+
+        Parameters
+        ----------
+        transcript: Union[str, Path]
+            The path to the transcript file to annotate.
+        audio: Union[str, Path]
+            The path to the audio file to use for classification.
+        dest: Optional[Union[str, Path]]
+            Optional local storage destination
+        model_top_hash: str
+            The model top hash to pull from remote store and use for annotation.
+            Default: 453d51... (highest accuracy model for Seattle to date)
+        transcript_meta: Optional[_TranscriptMeta]
+            Optional metadata to hand back during return. Used in parallel application.
+        remote_storage_dir: Optional[str]
+            An optional remote storage dir to store the annotated transcripts to.
+            Should be in the form of '{bucket}/{dir}'. The file will be stored with a
+            random uuid.
+        fs_kwargs: Dict[str, Any]
+            Extra arguments to pass to the created file system connection.
+
+        Returns
+        -------
+        Union[Path, _TranscriptApplicationReturn, _TranscriptApplicationError]
+            If transcript_meta was not provided and no errors arose during application,
+            only the Path is returned.
+
+            If transcript_meta was provided and no errors arose during application,
+            a _TranscriptApplicationReturn is returned that passed back the annotated
+            path and the metadata.
+
+            If any error occurs during application, a _TranscriptApplicationError is
+            returned.
+        """
         from cdp_backend.annotation.speaker_labels import annotate
 
         # Pull or use model
@@ -443,10 +479,6 @@ class SpeakerboxManager:
 
             fs = s3fs.S3FileSystem(**fs_kwargs)
 
-            # Clean up storage dir tail
-            if remote_storage_dir[-1] == "/":
-                remote_storage_dir = remote_storage_dir[:-1]
-
             # Make remote path
             remote_path = f"{remote_storage_dir}/{uuid4()}.json"
             fs.put_file(str(dest), remote_path)
@@ -478,11 +510,57 @@ class SpeakerboxManager:
         remote_storage_dir: Optional[str] = None,
         fs_kwargs: Dict[str, Any] = {},
     ) -> str:
+        """
+        Apply a trained Speakerbox model across a large CDP session dataset.
+
+        Parameters
+        ----------
+        instance: str
+            The CDP instance infrastructure slug (i.e. cdp_data.CDPInstances.Seattle).
+        start_datetime: str
+            The start datetime in ISO format (i.e. "2021-01-01")
+        end_datetime: str
+            The end datetime in ISO format (i.e. "2021-02-01")
+        model_top_hash: str
+            The model top hash to pull from remote store and use for annotation.
+            Default: 453d51... (highest accuracy model for Seattle to date)
+        remote_storage_dir: Optional[str]
+            An optional remote storage dir to store the annotated transcripts to.
+            Should be in the form of '{bucket}/{dir}'. A directory with the datetime
+            of when this function was called will be appended to the path as well.
+            For example, when provided the following: 'my-bucket/application-results/'
+            the annotated files will ultimately be placed in the directory:
+            'my-bucket/application-results/2022-06-29T11:14:42/'.
+            Each file will be given a random uuid.
+        fs_kwargs: Dict[str, Any]
+            Extra arguments to pass to the created file system connection.
+
+        Returns
+        -------
+        str
+            The path to the results parquet file.
+
+        Notes
+        -----
+        When attempting to use remote storage, be sure to set your `AWS_PROFILE`
+        environment variable.
+        """
+        from datetime import datetime
         from itertools import repeat
 
         import pandas as pd
         from cdp_data import datasets, instances
         from tqdm.contrib.concurrent import process_map
+
+        if remote_storage_dir:
+            # Clean up storage dir tail
+            if remote_storage_dir[-1] == "/":
+                remote_storage_dir = remote_storage_dir[:-1]
+
+            # Store in directory with datetime of run
+            dt = datetime.utcnow().replace(microsecond=0).isoformat()
+            remote_storage_dir = f"{remote_storage_dir}/{dt}"
+            log.info(f"Will store annotated transcripts to: '{remote_storage_dir}'")
 
         # Get session dataset to apply against
         ds = datasets.get_session_dataset(
@@ -534,7 +612,7 @@ class SpeakerboxManager:
         results = pd.DataFrame(
             [
                 {
-                    "annotated_transcript_path": r.annotated_transcript,
+                    "annotated_transcript_path": r.annotated_transcript_path,
                     **r.transcript_meta.to_dict(),
                 }
                 for r in annotation_returns
