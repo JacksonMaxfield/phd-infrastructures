@@ -18,7 +18,7 @@ on:
         options:
         - 'us-west-2'
       instance:
-        description: 'Which AWS EC2 machine type to use. ("a*" is CPU, "p*" is GPU')
+        description: 'Which AWS EC2 machine type to use. ("a*" is CPU, "p*" is GPU)'
         required: true
         default: 'a1.2xlarge'
         type: choice
