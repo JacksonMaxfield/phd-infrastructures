@@ -575,19 +575,20 @@ class SpeakerboxManager:
         When attempting to use remote storage, be sure to set your `AWS_PROFILE`
         environment variable.
         """
-        import os
+        # import os
 
-        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
         from datetime import datetime
-        from itertools import repeat
 
+        # from itertools import repeat
         import pandas as pd
-        import torch
-        from cdp_data import datasets, instances
-        from tqdm.contrib.concurrent import process_map
 
-        torch.device("cpu")
+        # import torch
+        from cdp_data import datasets, instances
+
+        # from tqdm.contrib.concurrent import process_map
+        # torch.device("cpu")
 
         if remote_storage_dir:
             # Clean up storage dir tail
@@ -616,27 +617,45 @@ class SpeakerboxManager:
         )
 
         # Parallel annotate
-        transcript_metas = [
-            _TranscriptMeta(
-                event_id=r.event.id,
-                session_id=r.id,
-                session_datetime=r.session_datetime,
-            )
-            for _, r in ds.iterrows()
-        ]
+        # transcript_metas = [
+        #     _TranscriptMeta(
+        #         event_id=r.event.id,
+        #         session_id=r.id,
+        #         session_datetime=r.session_datetime,
+        #     )
+        #     for _, r in ds.iterrows()
+        # ]
 
         log.info("Annotating transcripts...")
-        annotation_returns = process_map(
-            SpeakerboxManager.apply_single,
-            ds.transcript_path,
-            ds.audio_path,
-            repeat(None),
-            repeat(model_top_hash),
-            repeat(model_storage_path),
-            transcript_metas,
-            repeat(remote_storage_dir),
-            repeat(fs_kwargs),
-        )
+        # annotation_returns = process_map(
+        #     SpeakerboxManager.apply_single,
+        #     ds.transcript_path,
+        #     ds.audio_path,
+        #     repeat(None),
+        #     repeat(model_top_hash),
+        #     repeat(model_storage_path),
+        #     transcript_metas,
+        #     repeat(remote_storage_dir),
+        #     repeat(fs_kwargs),
+        # )
+        annotation_returns = []
+        for _, row in ds.iterrows():
+            annotation_returns.append(
+                SpeakerboxManager.apply_single(
+                    transcript=row.transcript_path,
+                    audio=row.audio_path,
+                    dest=None,
+                    model_top_hash=model_top_hash,
+                    model_storage_path=model_storage_path,
+                    transcript_meta=_TranscriptMeta(
+                        event_id=row.event.id,
+                        session_id=row.id,
+                        session_datetime=row.session_datetime,
+                    ),
+                    remote_storage_dir=remote_storage_dir,
+                    fs_kwargs=fs_kwargs,
+                )
+            )
 
         # Filter any errors
         errors = pd.DataFrame(
