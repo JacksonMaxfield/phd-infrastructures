@@ -18,12 +18,12 @@ on:
         options:
         - 'us-west-2'
       instance:
-        description: 'Which AWS EC2 machine type to use. ("a*" is CPU, "p*" is GPU)'
+        description: 'Which AWS EC2 machine type to use. ("c6*" is CPU, "p*" is GPU).'
         required: true
-        default: 'a1.2xlarge'
+        default: 'c6id.xlarge'
         type: choice
         options:
-        - 'a1.2xlarge'
+        - 'c6id.xlarge'
         - 'p2.xlarge'
         - 'p3.2xlarge'
       storage:
@@ -92,12 +92,11 @@ jobs:
               --cloud-region=${{ github.event.inputs.region }} \
               --cloud-type=${{ github.event.inputs.instance }} \
               --cloud-hdd-size=${{ github.event.inputs.storage }} \
-              --cloud-startup-script=$(echo 'echo "$(curl https://github.com/'"$GITHUB_ACTOR"'.keys)" >> /home/ubuntu/.ssh/authorized_keys' | base64 -w 0) \
-              --labels=cml-gpu
+              --labels=cml-runner
 
   run-command:
     needs: deploy-runner
-    runs-on: [self-hosted, cml-gpu]
+    runs-on: [self-hosted, cml-runner]
     timeout-minutes: 4320 # 72h
     container:
       image: docker://ghcr.io/jacksonmaxfield/${{ github.event.inputs.project }}-${{ github.event.inputs.docker }}:main
