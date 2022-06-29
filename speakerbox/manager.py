@@ -575,20 +575,11 @@ class SpeakerboxManager:
         When attempting to use remote storage, be sure to set your `AWS_PROFILE`
         environment variable.
         """
-        # import os
-
-        # os.environ["CUDA_VISIBLE_DEVICES"] = ""
-
         from datetime import datetime
 
-        # from itertools import repeat
         import pandas as pd
-
-        # import torch
         from cdp_data import datasets, instances
-
-        # from tqdm.contrib.concurrent import process_map
-        # torch.device("cpu")
+        from tqdm import tqdm
 
         if remote_storage_dir:
             # Clean up storage dir tail
@@ -616,30 +607,9 @@ class SpeakerboxManager:
             model_storage_path=model_storage_path,
         )
 
-        # Parallel annotate
-        # transcript_metas = [
-        #     _TranscriptMeta(
-        #         event_id=r.event.id,
-        #         session_id=r.id,
-        #         session_datetime=r.session_datetime,
-        #     )
-        #     for _, r in ds.iterrows()
-        # ]
-
         log.info("Annotating transcripts...")
-        # annotation_returns = process_map(
-        #     SpeakerboxManager.apply_single,
-        #     ds.transcript_path,
-        #     ds.audio_path,
-        #     repeat(None),
-        #     repeat(model_top_hash),
-        #     repeat(model_storage_path),
-        #     transcript_metas,
-        #     repeat(remote_storage_dir),
-        #     repeat(fs_kwargs),
-        # )
         annotation_returns = []
-        for _, row in ds.iterrows():
+        for _, row in tqdm(ds.iterrows(), desc="Transcripts annotated"):
             annotation_returns.append(
                 SpeakerboxManager.apply_single(
                     transcript=row.transcript_path,
