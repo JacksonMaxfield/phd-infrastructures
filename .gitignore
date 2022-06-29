@@ -17,3 +17,7 @@ cdp-datasets/
 
 # Models
 trained-speakerbox/
+
+# Results and Extras
+errors.csv
+results--*.parquet

@@ -27,6 +27,12 @@ SYNOPSIS
 COMMANDS
     COMMAND is one of the following:
 
+     apply_across_cdp_dataset
+       Apply a trained Speakerbox model across a large CDP session dataset.
+
+     apply_single
+       Apply a trained Speakerbox model to a single transcript.
+
      list_models
        List all stored models.
 
