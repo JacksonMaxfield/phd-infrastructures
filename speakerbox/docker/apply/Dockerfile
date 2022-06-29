@@ -30,5 +30,5 @@ RUN git clone https://github.com/JacksonMaxfield/phd-infrastructures.git
 WORKDIR /phd-infrastructures/speakerbox/
 
 # Install all requirements
-RUN pip install -r ../../requirements.txt \
-    && pip install -r ../requirements-apply.txt
+RUN pip install -r ../requirements.txt \
+    && pip install -r requirements-apply.txt
