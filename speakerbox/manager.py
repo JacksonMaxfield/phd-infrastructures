@@ -512,7 +512,7 @@ class SpeakerboxManager:
             # Make remote path
             remote_path = f"{remote_storage_dir}/{uuid4()}.json"
             fs.put_file(str(dest), remote_path)
-            log.info(f"Stored '{dest}' to '{remote_path}'")
+            log.debug(f"Stored '{dest}' to '{remote_path}'")
 
             # Attach remote path to meta
             if transcript_meta is not None:
@@ -660,6 +660,16 @@ class SpeakerboxManager:
             f"results--start_{start_datetime}--end_{end_datetime}.parquet"
         )
         results.to_parquet(results_save_path)
+
+        # Store errors and results to remote storage
+        if remote_storage_dir:
+            import s3fs
+
+            fs = s3fs.S3FileSystem(**fs_kwargs)
+
+            # Shove errors and results to remote
+            fs.put_file("errors.csv", f"{remote_storage_dir}/errors.csv")
+            fs.put_file(results_save_path, f"{remote_storage_dir}/{results_save_path}")
 
         # Return path to parquet file of results
         return results_save_path
